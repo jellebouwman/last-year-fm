@@ -1,0 +1,7 @@
+{
+	"devDependencies": {
+		"@tsconfig/node21": "^21.0.1",
+		"@tsconfig/strictest": "^2.0.3",
+		"@types/node": "^20.11.24"
+	}
+}
