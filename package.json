@@ -2,7 +2,7 @@
 	"scripts": {
 		"build": "tsc main.ts",
 		"flush-exec": "pnpm run flush && pnpm run exec",
-		"exec": "pnpm run build && node main.js",
+		"exec": "pnpm run build && node build/main.js",
 		"flush": "rm music.db && sqlite3 music.db < schema.sql"
 	},
 	"devDependencies": {

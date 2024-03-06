@@ -42,9 +42,9 @@ interface FetchRecentTracksOptions {
   // Defaults to 50. Maximum is 200.
   limit?: number
   // UNIX timestamp
-  from?: number
+  from: number
   // UNIX timestamp
-  to?: number
+  to: number
   // Defaults to first page
   page?: number
   user: string
