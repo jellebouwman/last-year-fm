@@ -1,69 +1,81 @@
-import { URLSearchParams } from "url"
+import { fetchRecentTracks } from "./src/api"
+import { LastFmEntityIdentifier } from "./src/api/utils"
+
+import * as sqlite3 from 'sqlite3'
 
 const unixStartOf2023 = 1672527600
 const unixStartOf2024 = 1704063600
-const lastFmApiRoot = 'http://ws.audioscrobbler.com/2.0/'
 const username = 'jellebouwman'
-const apiKey = '36f4da5da9b7053e06f5d875a64d0129'
 
 async function main() {
-  const params = new URLSearchParams()
+  const recentTracks = await fetchRecentTracks({
+    limit: 200,
+    user: username,
+    from: unixStartOf2023,
+    to: unixStartOf2024
+  })
 
-  params.set('api_key', apiKey)
-  params.set('user', username)
-  params.set('limit', '200')
-  params.set('from', unixStartOf2023.toString())
-  params.set('to', unixStartOf2024.toString())
-  params.set('method', 'user.getRecentTracks')
-  params.set('format', 'json')
-
-  const url = new URL(lastFmApiRoot + '?' + params.toString())
-
-  const res = await fetch(url)
-  const body = await res.json()
-  if (body && body.recenttracks) {
-    console.log('Found', body.recenttracks['@attr'].total, 'tracks in 2023')
+  if (!recentTracks) {
+    throw new Error(`No recent tracks found: ${recentTracks})`)
   }
+
+  const artistsSet = new Set<string>()
+  const albumsMap = new Map<string, LastFmEntityIdentifier & { artist_name: string }>()
+  const tracksMap = new Map<string, LastFmEntityIdentifier & {
+    artist_name: string, album_name: string
+  }>()
+
+  recentTracks.track.forEach((track) => {
+    // mbid exists, but it is not always available,
+    // because it is an external id from musicbrainz
+    // artist name is valid primary key for now.
+    artistsSet.add(track.artist.name)
+
+    // a track that is part of an album will have an album id
+    // tracks that are singles, or part of EPs will not have an album id
+    // but they will have an album name
+
+    // Albums could exist with the same name, but are created by different artists
+    // So we need to include the artist name in the primary key
+    albumsMap.set(track.album.name + track.artist.name, { ...track.album, artist_name: track.artist.name })
+
+    // Tracks could exist with the same name, but are created by different artists or
+    // are part of different albums from the same artist.
+    // So we need to include the artist name and the album in the primary key
+    tracksMap.set(track.name + track.album.name + track.artist.name, { id: track.mbid, name: track.name, artist_name: track.artist.name, album_name: track.album.name })
+  })
+
+  const db = new sqlite3.Database('./music.db')
+
+  // Saw this in the repo example,
+  // guarantees that statements are finished before executing the next one
+  // SO about it: https://stackoverflow.com/questions/41949724/how-does-db-serialize-work-in-node-sqlite3
+  db.serialize(() => {
+    // TODO: I probably like named parameters better instead of ? ?
+    const artistInsertStatement = db.prepare('INSERT INTO artist (name) VALUES (?)')
+    artistsSet.forEach((artist) => {
+      artistInsertStatement.run(artist)
+    })
+    artistInsertStatement.finalize()
+
+    const albumInsertStatement = db.prepare('INSERT INTO album (name, artist_name) VALUES (?, ?)')
+    albumsMap.forEach((album) => {
+      albumInsertStatement.run(album.name, album.artist_name)
+    })
+
+    albumInsertStatement.finalize()
+
+    const trackInsertStatement = db.prepare('INSERT INTO track (name, album_name, artist_name) VALUES (?, ?, ?)')
+    tracksMap.forEach((track) => {
+      trackInsertStatement.run(track.name, track.album_name, track.artist_name)
+    })
+
+    trackInsertStatement.finalize()
+
+  })
+
+  db.close()
+
 }
 
-// {
-//   "artist": {
-//     "mbid": "a16371b9-7d36-497a-a9d4-42b0a0440c5e",
-//     "#text": "Slowdive"
-//   },
-//   "streamable": "0",
-//   "image": [ ],
-//   "mbid": "729400f2-60e8-4eda-b1e7-538cdaee7743",
-//   "album": {
-//       "mbid": "4acdaa51-aa44-4a9b-954f-3c6eaab65590",
-//       "#text": "everything is alive"
-//   },
-//   "name": "chained to a cloud",
-//   "url": "https://www.last.fm/music/Slowdive/_/chained+to+a+cloud",
-//   "date": {
-//       "uts": "1703951089",
-//       "#text": "30 Dec 2023, 15:44"
-//   }
-// },
-// {
-//   "artist": {
-//     "mbid": "a16371b9-7d36-497a-a9d4-42b0a0440c5e",
-//     "#text": "Slowdive"
-//   },
-//   "streamable": "0",
-//   "image": [ ],
-//   "mbid": "729400f2-60e8-4eda-b1e7-538cdaee7743",
-//   "album": {
-//       "mbid": "4acdaa51-aa44-4a9b-954f-3c6eaab65590",
-//       "#text": "everything is alive"
-//   },
-//   "name": "chained to a cloud",
-//   "url": "https://www.last.fm/music/Slowdive/_/chained+to+a+cloud",
-//   "date": {
-//       "uts": "17039554782",
-//       "#text": "16 Nov 2023, 13:44"
-//   }
-// },
-
-
-main().then(() => console.log('Exit without errors!')).catch((e) => console.error(e))
+main().then(() => console.log('finished running!')).catch((e) => console.error(e))
