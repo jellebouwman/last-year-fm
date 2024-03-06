@@ -25,8 +25,14 @@ async function main() {
       return
     }
 
-    const { lastID: artistId } = await db.run(
-      "INSERT OR IGNORE INTO artist (artist_mbid, name) VALUES (?, ?)",
+    // TODO: add the on conflict to do to other db.run() calls
+    // and do not rely on lastId
+    const artistId = await db.get(
+      // Is a bit of hack to do this in 1 query,
+      // dangerous when we get into concurrent territory,
+      // and will need to be refactored when we start using
+      // generated 'updated_at' fields, which will get updated by the UPDATE keyword
+      "INSERT INTO artist (artist_mbid, name) VALUES (?, ?) ON CONFLICT DO UPDATE SET name = excluded.name RETURNING id",
       track.artist.id,
       track.artist.name
     )
