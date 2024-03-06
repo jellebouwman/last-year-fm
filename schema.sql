@@ -1,25 +1,37 @@
-CREATE TABLE IF NOT EXISTS user (id SERIAL PRIMARY KEY);
+-- CREATE TABLE IF NOT EXISTS user (id SERIAL PRIMARY KEY);
+PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS artist (name TEXT NOT NULL PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS artist (
+  id INTEGER PRIMARY KEY,
+  artist_mbid TEXT,
+  name TEXT NOT NULL,
+  UNIQUE (name, artist_mbid)
+);
 
 CREATE TABLE IF NOT EXISTS album (
+  id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
-  artist_name TEXT NOT NULL REFERENCES artist(name),
-  PRIMARY KEY (name, artist_name)
+  artist_id INTEGER NOT NULL,
+  album_mbid TEXT,
+  CHECK(length(name) > 1),
+  UNIQUE (name, artist_id),
+  FOREIGN KEY (artist_id) REFERENCES artist(id)
 );
 
 CREATE TABLE IF NOT EXISTS track (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT,
-album_name TEXT NOT NULL REFERENCES album(name),
-artist_name TEXT NOT NULL REFERENCES artist(name),
-PRIMARY KEY (name, album_name, artist_name)
+  track_mbid TEXT,
+  album_id INTEGER NOT NULL REFERENCES album(id),
+  artist_id INTEGER NOT NULL REFERENCES artist(id),
+  UNIQUE (name, album_id, artist_id)
 );
 
--- CREATE TABLE IF NOT EXISTS scrobble (
---   id SERIAL PRIMARY KEY,
---   user_id INTEGER REFERENCES user(id),
---   track_id INTEGER REFERENCES track(id),
---   artist_id INTEGER REFERENCES artist(id),
---   album_id INTEGER REFERENCES album(id),
---   played_at INTEGER
--- );
+CREATE TABLE IF NOT EXISTS scrobble (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_name TEXT NOT NULL,
+  track_id INTEGER NOT NULL REFERENCES track(id),
+  played_at INTEGER NOT NULL,
+
+  UNIQUE(user_name, track_id, played_at)
+);
