@@ -25,9 +25,7 @@ async function main() {
       return
     }
 
-    // TODO: add the on conflict to do to other db.run() calls
-    // and do not rely on lastId
-    const artistId = await db.get(
+    const { id: artistId } = await db.get(
       // Is a bit of hack to do this in 1 query,
       // dangerous when we get into concurrent territory,
       // and will need to be refactored when we start using
@@ -37,15 +35,15 @@ async function main() {
       track.artist.name
     )
 
-    const { lastID: albumId } = await db.run(
-      "INSERT OR IGNORE INTO album (album_mbid, name, artist_id) VALUES (?, ?, ?)",
+    const { id: albumId } = await db.get(
+      "INSERT INTO album (album_mbid, name, artist_id) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET name = excluded.name RETURNING id",
       track.album.id,
       track.album.name,
-      artistId
+      artistId,
     )
 
-    const { lastID: trackId } = await db.run(
-      "INSERT OR IGNORE INTO track (track_mbid, name, album_id, artist_id) VALUES (?, ?, ?, ?)",
+    const { id: trackId } = await db.get(
+      "INSERT INTO track (track_mbid, name, album_id, artist_id) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET name = excluded.name RETURNING id",
       track.mbid,
       track.name,
       albumId,
@@ -61,6 +59,7 @@ async function main() {
   })
 
   await db.close()
+
 }
 
 main()

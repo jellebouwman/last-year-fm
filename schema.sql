@@ -5,17 +5,18 @@ CREATE TABLE IF NOT EXISTS artist (
   artist_mbid TEXT,
   name TEXT NOT NULL,
   UNIQUE (name, artist_mbid)
-);
+) STRICT;
 
 CREATE TABLE IF NOT EXISTS album (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   artist_id INTEGER NOT NULL,
+  album_url TEXT,
   album_mbid TEXT,
   CHECK(length(name) > 1),
   UNIQUE (name, artist_id),
   FOREIGN KEY (artist_id) REFERENCES artist(id)
-);
+) STRICT;
 
 CREATE TABLE IF NOT EXISTS track (
   id INTEGER PRIMARY KEY,
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS track (
   album_id INTEGER NOT NULL REFERENCES album(id),
   artist_id INTEGER NOT NULL REFERENCES artist(id),
   UNIQUE (name, album_id, artist_id)
-);
+) STRICT;
 
 CREATE TABLE IF NOT EXISTS scrobble (
   id INTEGER PRIMARY KEY,
@@ -33,4 +34,4 @@ CREATE TABLE IF NOT EXISTS scrobble (
   played_at INTEGER NOT NULL,
 
   UNIQUE(user_name, track_id, played_at)
-);
+) STRICT;

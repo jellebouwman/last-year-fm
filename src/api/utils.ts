@@ -30,6 +30,9 @@ export const defaultLastFmFetchParams = {
 export const fetchFromLastFm = async (params: URLSearchParams) => {
   const url = new URL(lastFmApiRoot + "?" + params.toString())
 
+  console.log("Making request with URL: ", url.toString())
+
   const res = await fetch(url)
   return res.json()
 }
+
