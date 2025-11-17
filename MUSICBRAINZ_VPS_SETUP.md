@@ -46,6 +46,30 @@ Use the official [musicbrainz-docker](https://github.com/metabrainz/musicbrainz-
 - Redis (for caching)
 - No web server or API components
 
+## Key Concepts: Host vs Container Commands
+
+**IMPORTANT**: Understanding where commands run is critical for this setup.
+
+### Host Commands (run on your VPS terminal)
+- **`admin/configure`**: Initial repository configuration (rarely needed)
+- **`docker compose up -d`**: Start/stop containers
+- **`docker compose ps`**: Check container status
+- **`docker compose logs`**: View logs
+
+### Container Commands (run INSIDE containers via `docker compose run` or `exec`)
+- **`createdb.sh -fetch`**: Download and import database dump
+- **`recreatedb.sh -fetch`**: Drop and recreate database with fresh dump
+- **`replication.sh`**: Trigger replication manually
+- **Database operations**: All `psql` commands run inside the `db` container
+
+### Service Names
+The alt-db-only-mirror setup uses these service names:
+- **`db`**: PostgreSQL database server
+- **`musicbrainz`**: Helper container for database operations (import, replication)
+- **`redis`**: Redis cache
+
+Use these names with `docker compose exec <service>` or `docker compose run <service>`.
+
 ## Setup Steps
 
 ### Phase 1: VPS Provisioning & Docker Installation
@@ -110,147 +134,190 @@ Use the official [musicbrainz-docker](https://github.com/metabrainz/musicbrainz-
    cd musicbrainz-docker
    ```
 
-2. **Run configuration for database-only mirror**
-   ```bash
-   sudo admin/configure with alt-db-only-mirror
-   ```
+2. **Use the alt-db-only-mirror configuration**
 
-3. **Create and configure .env file**
+   The repository includes `docker-compose.alt.db-only-mirror.yml` which provides a minimal database-only setup. Docker Compose will automatically use this configuration.
+
+   **Note**: The admin scripts in the `admin/` directory on the host are only for initial repository configuration. Database operations (import, replication) run inside containers using `docker compose run` or `docker compose exec`.
+
+3. **Create and configure .env file (Optional)**
    ```bash
    cp default.env .env
    ```
-   
-   Edit `.env` and configure:
+
+   Edit `.env` if you need to customize settings:
    ```bash
-   # Required: Your MetaBrainz access token
-   METABRAINZ_ACCESS_TOKEN=your_token_here
-   
    # Database configuration
    POSTGRES_VERSION=16
-   MUSICBRAINZ_POSTGRES_PORT=5432
-   
-   # Optional: Adjust memory if needed
-   MUSICBRAINZ_POSTGRES_SHARED_BUFFERS=2GB
+
+   # Optional: Adjust memory if needed (default is 2GB)
+   # MUSICBRAINZ_POSTGRES_SHARED_BUFFERS=2GB
+
+   # Optional: Customize download URL
+   # MUSICBRAINZ_BASE_DOWNLOAD_URL=https://data.metabrainz.org/pub/musicbrainz
    ```
 
-4. **Get MetaBrainz API token**
-   - Create account at https://metabrainz.org
-   - Go to your profile page
-   - Copy your access token
-   - Add it to `.env` file as `METABRAINZ_ACCESS_TOKEN`
+   **Note**: For a database-only mirror, you typically don't need a MetaBrainz access token. This is only required for live replication or API access.
 
 ### Phase 3: Initial Database Import
 
-1. **Start the services**
+1. **Start the base services**
    ```bash
    sudo docker compose up -d
    ```
 
+   This starts the PostgreSQL database (`db`), Redis, and the `musicbrainz` service containers.
+
 2. **Download and import the database dump**
+
+   **IMPORTANT**: This is the long step that can take 4-8 hours depending on your VPS specs and network speed.
+
    ```bash
-   # This downloads the latest dump and imports it
-   # Takes several hours depending on your connection and CPU
-   sudo admin/download-import-dump
+   # This downloads the latest full dump (~20-30GB) and imports it
+   sudo docker compose run --rm musicbrainz createdb.sh -fetch
    ```
-   
-   Monitor progress:
+
+   This command will:
+   - Download the latest MusicBrainz data dump files
+   - Extract them
+   - Import into PostgreSQL
+   - Create indexes and constraints
+
+   The process runs in the foreground and you'll see progress output. You can monitor logs in a separate terminal:
    ```bash
    sudo docker compose logs -f musicbrainz
    ```
 
 3. **Verify import**
    ```bash
-   sudo docker compose exec musicbrainz-db psql -U musicbrainz -d musicbrainz_db \
-     -c "SELECT COUNT(*) FROM artist;"
+   sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db \
+     -c "SELECT COUNT(*) FROM musicbrainz.artist;"
    ```
 
-### Phase 4: Set Up Replication
+   You should see a count of over 1 million artists if the import was successful.
 
-1. **Initial replication to catch up**
+### Phase 4: Set Up Replication (Optional but Recommended)
+
+Replication keeps your database up-to-date with the latest changes from MusicBrainz. The database dump you imported is a snapshot in time; replication applies incremental updates.
+
+**Note**: The alt-db-only-mirror setup includes a `musicbrainz` service with `command: load-crontab-only.sh` which automatically handles replication scheduling. Check if replication is already configured:
+
+```bash
+sudo docker compose exec musicbrainz crontab -l
+```
+
+If you see cron entries, replication is already set up and you can skip manual configuration.
+
+If you need to manually trigger replication:
+
+1. **Initial replication to catch up from dump to current state**
    ```bash
-   # Catch up from dump to current state
-   sudo admin/replication-up
+   sudo docker compose run --rm musicbrainz replication.sh
    ```
 
-2. **Set up automated replication cron job**
-   
-   Create a cron script:
+2. **Monitor replication status**
    ```bash
-   sudo nano /etc/cron.hourly/musicbrainz-replication
+   sudo docker compose logs -f musicbrainz
    ```
-   
+
+3. **Alternative: Set up host-level cron for replication**
+
+   If automatic replication isn't working, create a cron script:
+   ```bash
+   sudo vim /etc/cron.hourly/musicbrainz-replication
+   ```
+
    Add:
    ```bash
    #!/bin/bash
-   cd /home/YOUR_USER/musicbrainz-docker
-   docker compose exec -T musicbrainz admin/cron/hourly.sh
+   cd /home/jelle/musicbrainz-docker
+   docker compose exec -T musicbrainz /usr/local/bin/replication.sh
    ```
-   
+
    Make it executable:
    ```bash
    sudo chmod +x /etc/cron.hourly/musicbrainz-replication
-   ```
-   
-   Or for daily replication, use `/etc/cron.daily/` instead.
-
-3. **Verify replication is working**
-   ```bash
-   sudo docker compose exec musicbrainz admin/replication-status
    ```
 
 ### Phase 5: Security & Access Configuration
 
 1. **Create read-only database user for applications**
    ```bash
-   sudo docker compose exec musicbrainz-db psql -U musicbrainz -d musicbrainz_db
+   sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db
    ```
-   
+
    Then in PostgreSQL:
    ```sql
    -- Create read-only user
    CREATE USER readonly WITH PASSWORD 'strong_readonly_password';
-   
+
    -- Grant connection
    GRANT CONNECT ON DATABASE musicbrainz_db TO readonly;
-   
+
    -- Grant usage on schema
    GRANT USAGE ON SCHEMA musicbrainz TO readonly;
-   
+
    -- Grant SELECT on all tables
    GRANT SELECT ON ALL TABLES IN SCHEMA musicbrainz TO readonly;
-   
+
    -- Grant SELECT on future tables
-   ALTER DEFAULT PRIVILEGES IN SCHEMA musicbrainz 
+   ALTER DEFAULT PRIVILEGES IN SCHEMA musicbrainz
      GRANT SELECT ON TABLES TO readonly;
-   
+
    \q
    ```
 
 2. **Configure PostgreSQL for remote connections**
-   
-   Edit PostgreSQL config in Docker:
+
+   First, check the current PostgreSQL configuration:
    ```bash
-   sudo docker compose exec musicbrainz-db bash
-   
-   # Inside container, edit pg_hba.conf
-   echo "host all readonly YOUR_APP_IP/32 md5" >> /var/lib/postgresql/data/pg_hba.conf
-   
-   exit
-   ```
-   
-   Restart to apply:
-   ```bash
-   sudo docker compose restart musicbrainz-db
+   sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db \
+     -c "SHOW listen_addresses;"
    ```
 
-3. **Configure firewall to allow application access**
+   Edit PostgreSQL config in Docker:
+   ```bash
+   sudo docker compose exec db bash
+
+   # Inside container, edit pg_hba.conf
+   echo "host all readonly YOUR_APP_IP/32 md5" >> /var/lib/postgresql/data/pg_hba.conf
+
+   exit
+   ```
+
+   Restart to apply:
+   ```bash
+   sudo docker compose restart db
+   ```
+
+3. **Expose PostgreSQL port** (if needed)
+
+   By default, the alt-db-only-mirror configuration only exposes port 5432 internally to other containers. To allow external connections, you need to publish the port to the host.
+
+   Edit `docker-compose.yml` or create a `docker-compose.override.yml`:
+   ```yaml
+   services:
+     db:
+       ports:
+         - "5432:5432"
+   ```
+
+   Then restart:
+   ```bash
+   sudo docker compose up -d
+   ```
+
+4. **Configure firewall to allow application access**
    ```bash
    # Allow PostgreSQL from specific application server IPs
    sudo ufw allow from YOUR_APP_SERVER_IP to any port 5432
+
+   # Or for development, allow from your local IP
+   sudo ufw allow from YOUR_DEV_MACHINE_IP to any port 5432
    ```
 
-4. **Test remote connection**
-   
+5. **Test remote connection**
+
    From your development machine:
    ```bash
    psql -h your-vps-ip.com -U readonly -d musicbrainz_db -c "SELECT version();"
@@ -287,7 +354,11 @@ sudo docker system df
 
 **Check replication status:**
 ```bash
-sudo docker compose exec musicbrainz admin/replication-status
+# Check if cron is set up
+sudo docker compose exec musicbrainz crontab -l
+
+# View recent logs
+sudo docker compose logs --tail=100 musicbrainz
 ```
 
 ### When Schema Updates Occur
@@ -317,7 +388,7 @@ MusicBrainz announces schema changes on their [blog](https://blog.metabrainz.org
 
 **Backup the database:**
 ```bash
-sudo docker compose exec -T musicbrainz-db pg_dump -U musicbrainz musicbrainz_db | \
+sudo docker compose exec -T db pg_dump -U musicbrainz musicbrainz_db | \
   gzip > musicbrainz-backup-$(date +%Y%m%d).sql.gz
 ```
 
@@ -327,8 +398,8 @@ sudo docker compose exec -T musicbrainz-db pg_dump -U musicbrainz musicbrainz_db
 #!/bin/bash
 BACKUP_DIR=/backups/musicbrainz
 mkdir -p $BACKUP_DIR
-cd /home/YOUR_USER/musicbrainz-docker
-docker compose exec -T musicbrainz-db pg_dump -U musicbrainz musicbrainz_db | \
+cd /home/jelle/musicbrainz-docker
+docker compose exec -T db pg_dump -U musicbrainz musicbrainz_db | \
   gzip > $BACKUP_DIR/musicbrainz-$(date +%Y%m%d).sql.gz
 
 # Keep only last 7 days
@@ -424,13 +495,25 @@ sudo docker compose down
 sudo docker compose up -d
 ```
 
+### Database import failed
+```bash
+# Check logs for errors
+sudo docker compose logs musicbrainz
+
+# Try recreating the database
+sudo docker compose run --rm musicbrainz recreatedb.sh -fetch
+```
+
 ### Replication falling behind
 ```bash
-# Check status
-sudo docker compose exec musicbrainz admin/replication-status
+# Check if cron is running
+sudo docker compose exec musicbrainz crontab -l
+
+# View replication logs
+sudo docker compose logs --tail=200 musicbrainz
 
 # Manually trigger replication
-sudo docker compose exec musicbrainz admin/replication-up
+sudo docker compose run --rm musicbrainz replication.sh
 ```
 
 ### Out of disk space
@@ -442,21 +525,28 @@ sudo docker system df
 sudo docker system prune -a
 
 # Check database size
-sudo docker compose exec musicbrainz-db psql -U musicbrainz -d musicbrainz_db \
+sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db \
   -c "SELECT pg_size_pretty(pg_database_size('musicbrainz_db'));"
 ```
 
 ### Can't connect remotely
 ```bash
+# Check if port is published
+sudo docker compose ps
+# Look for "0.0.0.0:5432->5432/tcp" in the db service
+
 # Check PostgreSQL is listening
-sudo docker compose exec musicbrainz-db psql -U musicbrainz -d musicbrainz_db \
+sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db \
   -c "SHOW listen_addresses;"
 
 # Check firewall
 sudo ufw status
 
 # Check pg_hba.conf
-sudo docker compose exec musicbrainz-db cat /var/lib/postgresql/data/pg_hba.conf
+sudo docker compose exec db cat /var/lib/postgresql/data/pg_hba.conf
+
+# Test connection from VPS itself
+psql -h localhost -U readonly -d musicbrainz_db -c "SELECT 1;"
 ```
 
 ## Resources & Documentation
@@ -498,3 +588,58 @@ sudo docker compose exec musicbrainz-db cat /var/lib/postgresql/data/pg_hba.conf
 - [ ] Monitoring solution: built-in or third-party?
 - [ ] SSL/TLS setup: required for production?
 - [ ] Multiple application servers: how many IPs to whitelist?
+
+## Actual Setup Experience (Lessons Learned)
+
+### What We Planned vs What Actually Worked
+
+#### Phase 2: Configuration
+- **Planned**: Run `sudo admin/configure with alt-db-only-mirror`
+- **Actual**: Not needed! The repository automatically uses `docker-compose.alt.db-only-mirror.yml` when you start with `docker compose up -d`. The admin scripts on the host are only for initial repository configuration, not database operations.
+
+#### Phase 3: Database Import
+- **Planned**: `sudo admin/download-import-dump`
+- **Actual**: `sudo docker compose run --rm musicbrainz createdb.sh -fetch`
+- **Why**: Database operations run INSIDE containers, not from host admin scripts. The correct command runs the `createdb.sh` script inside the `musicbrainz` container.
+
+#### Service Names
+- **Planned**: Service named `musicbrainz-db`
+- **Actual**: Service is named `db`
+- **Impact**: All commands use `db` not `musicbrainz-db` (e.g., `docker compose exec db psql ...`)
+
+#### MetaBrainz Token
+- **Planned**: Required for setup
+- **Actual**: Not needed for basic database-only mirror! Only required if you want live replication or API access.
+
+#### Port Exposure
+- **Not in original plan**: The alt-db-only-mirror setup only exposes port 5432 to other containers, not to the host. To allow remote connections, you must explicitly publish the port in a `docker-compose.override.yml` file.
+
+### Commands Reference (Corrected)
+
+```bash
+# Start services
+sudo docker compose up -d
+
+# Download and import database (4-8 hours)
+sudo docker compose run --rm musicbrainz createdb.sh -fetch
+
+# Verify import
+sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db -c "SELECT COUNT(*) FROM musicbrainz.artist;"
+
+# Check running containers
+sudo docker compose ps
+
+# View logs
+sudo docker compose logs -f musicbrainz
+
+# Access database directly
+sudo docker compose exec db psql -U musicbrainz -d musicbrainz_db
+```
+
+### Setup Time Estimates
+- **Phase 1 (VPS setup)**: 30 minutes
+- **Phase 2 (Clone & config)**: 10 minutes
+- **Phase 3 (Database import)**: 4-8 hours (mostly automated, just waiting)
+- **Phase 4 (Replication)**: Auto-configured via `load-crontab-only.sh`
+- **Phase 5 (Security)**: 20 minutes
+- **Total active time**: ~1 hour of work + 4-8 hours waiting for download/import

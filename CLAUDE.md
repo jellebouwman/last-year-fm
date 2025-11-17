@@ -1,0 +1,1 @@
+- On a VPS, always use vim. Never nano.
