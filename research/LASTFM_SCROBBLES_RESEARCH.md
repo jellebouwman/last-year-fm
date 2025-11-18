@@ -163,6 +163,291 @@ Consider:
 - Progress tracking for user feedback
 - Caching layer to avoid re-fetching
 
+### Reducing API Load
+
+#### User Validation via Web Request (No API)
+
+Check if a user exists without using API quota:
+
+```javascript
+const userExists = async (username) => {
+  const response = await fetch(
+    `https://www.last.fm/user/${username}`,
+    { method: 'HEAD' }
+  );
+  return response.status === 200;  // 404 = doesn't exist
+};
+```
+
+#### Caching Strategy
+
+| Data | TTL | Reason |
+|------|-----|--------|
+| User existence | 24 hours | Users rarely delete accounts |
+| Weekly chart list (years) | 24 hours | Only adds 1 week per week |
+| Scrobbles | Forever* | Immutable data |
+
+*Until user requests re-import
+
+#### Request Flow
+
+```
+Request: /user/jellebouwman/2024
+
+1. Check local DB for user
+   → Found & fresh? Use cached data
+   → Not found? HEAD request to last.fm/user/jellebouwman
+
+2. Check local DB for available years
+   → Found & <24h old? Use cached
+   → Stale? One API call to getWeeklyChartList
+
+3. Check local DB for 2024 scrobbles
+   → Found? Serve immediately
+   → Not found? Queue background fetch, show "loading..."
+```
+
+#### API Call Summary
+
+| Call | Method | Rate Limited? | Cache |
+|------|--------|---------------|-------|
+| User exists | HEAD to webpage | No | 24h |
+| Available years | API getWeeklyChartList | Yes | 24h |
+| Scrobbles | API getRecentTracks | Yes | Forever |
+
+---
+
+## Worker Coordination (Go + TypeScript)
+
+When the Go worker and TypeScript API share a database, you need a way for the frontend to know job status without polling (which prevents serverless DB auto-scaling).
+
+### Option 1: Webhook + SSE (Recommended)
+
+Go worker pushes updates to TS API, which relays to frontend via Server-Sent Events:
+
+```
+Frontend ←SSE← TS API ←HTTP POST← Go Worker
+                  ↓
+                Neon (only for data writes/reads, no polling)
+```
+
+**Go worker pushes updates:**
+```go
+http.Post(
+  "https://your-api/internal/job-update",
+  "application/json",
+  bytes.NewBuffer(json.Marshal(map[string]any{
+    "job_id":      jobID,
+    "username":    username,
+    "year":        year,
+    "status":      "processing",
+    "progress":    15,
+    "total_pages": 50,
+  })),
+)
+```
+
+**TS API relays via SSE:**
+```typescript
+// In-memory map of active SSE connections
+const clients = new Map<string, Set<Response>>();
+
+// Receive webhook from Go worker
+app.post('/internal/job-update', (req, res) => {
+  const { username, year, status, progress, total_pages } = req.body;
+  const key = `${username}:${year}`;
+
+  // Push to all SSE clients watching this job
+  clients.get(key)?.forEach(client => {
+    client.write(`data: ${JSON.stringify({ status, progress, total_pages })}\n\n`);
+  });
+
+  res.sendStatus(200);
+});
+
+// SSE endpoint for frontend
+app.get('/user/:username/:year/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+
+  const key = `${req.params.username}:${req.params.year}`;
+  if (!clients.has(key)) clients.set(key, new Set());
+  clients.get(key).add(res);
+
+  req.on('close', () => clients.get(key)?.delete(res));
+});
+```
+
+### Option 2: Redis Pub/Sub
+
+Keep ephemeral job state out of the DB entirely:
+
+```
+Neon: scrobbles, users (persistent data)
+Redis: job status, progress (ephemeral state)
+```
+
+TS API subscribes to Redis channel, pushes to frontend via SSE.
+
+### Option 3: Go Serves SSE Directly
+
+Go handles its own SSE connections for jobs it's processing:
+
+```
+Frontend ←SSE← Go Worker (for progress)
+Frontend ←HTTP← TS API (for data)
+```
+
+### Jobs Table (Still Useful)
+
+Keep a jobs table for persistence/recovery, but only write to it - never poll:
+
+```sql
+CREATE TABLE fetch_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR NOT NULL,
+  year INTEGER NOT NULL,
+  status VARCHAR NOT NULL DEFAULT 'pending',
+  progress INTEGER DEFAULT 0,
+  total_pages INTEGER,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(username, year)
+);
+```
+
+---
+
+## Year Augmentation (MusicBrainz Enrichment)
+
+After fetching scrobbles, enrich them with release year data from MusicBrainz.
+
+### Two-Phase Pipeline
+
+```
+Phase 1: Fetch scrobbles (Last.fm API - rate limited)
+         ↓
+Phase 2: Augment with year (MusicBrainz mirror - no limits)
+```
+
+Or three phases for better control:
+
+```
+Phase 1: Fetch scrobbles
+Phase 2: Simple mbid lookups (fast, batch by distinct album_mbid)
+Phase 3: Fuzzy search for missing (slow, can run overnight)
+```
+
+### Data Model
+
+```sql
+CREATE TABLE scrobbles (
+  id UUID PRIMARY KEY,
+  username VARCHAR NOT NULL,
+  scrobbled_at TIMESTAMP NOT NULL,
+  track_name VARCHAR NOT NULL,
+  artist_name VARCHAR NOT NULL,
+  album_name VARCHAR,
+  album_mbid UUID,              -- from Last.fm (may be NULL)
+  release_year INTEGER,         -- filled by augmentation
+  augmentation_status VARCHAR,  -- 'pending', 'matched', 'fuzzy_matched', 'not_found'
+  UNIQUE(username, scrobbled_at, track_name, artist_name)
+);
+
+-- Cache album→year mappings (many scrobbles share same album)
+CREATE TABLE album_year_cache (
+  album_mbid UUID PRIMARY KEY,
+  release_year INTEGER,
+  release_group_name VARCHAR,
+  looked_up_at TIMESTAMP
+);
+```
+
+### Go Worker Flow
+
+```go
+func augmentScrobbles(username string, year int) {
+    // 1. Get distinct album_mbids needing lookup
+    rows := db.Query(`
+        SELECT DISTINCT album_mbid
+        FROM scrobbles
+        WHERE username = $1
+          AND release_year IS NULL
+          AND album_mbid IS NOT NULL
+    `, username)
+
+    // 2. Check cache, then query MusicBrainz mirror
+    for _, mbid := range mbids {
+        cached := checkCache(mbid)
+        if cached != nil {
+            updateScrobbles(mbid, cached.year)
+            continue
+        }
+
+        year := queryMusicBrainz(mbid)
+        if year != nil {
+            cacheResult(mbid, year)
+            updateScrobbles(mbid, year)
+        }
+    }
+
+    // 3. Fuzzy search for scrobbles without mbid
+    fuzzyMatches := db.Query(`
+        SELECT DISTINCT artist_name, album_name
+        FROM scrobbles
+        WHERE username = $1
+          AND release_year IS NULL
+          AND album_mbid IS NULL
+    `, username)
+
+    for _, match := range fuzzyMatches {
+        year := fuzzySearchMusicBrainz(match.artist, match.album)
+        // ...
+    }
+}
+```
+
+### Fuzzy Search Query
+
+For scrobbles without mbid, search by artist + album name:
+
+```sql
+-- Requires pg_trgm extension
+SELECT
+  rg.name,
+  rgm.first_release_date_year,
+  similarity(rg.name, $1) AS album_score,
+  similarity(ac.name, $2) AS artist_score
+FROM release_group rg
+JOIN artist_credit ac ON rg.artist_credit = ac.id
+JOIN release_group_meta rgm ON rg.id = rgm.id
+WHERE rg.name % $1  -- trigram similarity
+  AND ac.name % $2
+ORDER BY (similarity(rg.name, $1) + similarity(ac.name, $2)) DESC
+LIMIT 1;
+```
+
+### Scheduling Recommendations
+
+| Lookup Type | When to Run | Why |
+|-------------|-------------|-----|
+| mbid lookups | Inline after fetch | Fast, no rate limits |
+| Fuzzy search | Batch overnight | Expensive, lower priority |
+
+### Extended Job Status
+
+```go
+type JobStatus struct {
+    Phase        string  // "fetching", "augmenting"
+    Progress     int
+    Total        int
+    Matched      int     // Scrobbles with year found
+    FuzzyMatched int     // Matched via fuzzy search
+    NotFound     int     // No year found
+}
+```
+
 ---
 
 ## Handling Edge Cases
@@ -170,9 +455,9 @@ Consider:
 ### Missing MBIDs
 
 Not all Last.fm scrobbles have MusicBrainz IDs. Options:
-- Skip year lookup for those tracks
-- Search MusicBrainz by artist + album name
-- Mark as "unknown year"
+- Simple mbid lookup first (fast path)
+- Fuzzy search by artist + album name (slow path)
+- Mark as "unknown year" if no match
 
 ### Partial Dates
 
@@ -364,3 +649,112 @@ if (data.error) {
 - **Last.fm API Terms:** https://www.last.fm/api/tos
 - **MusicBrainz API:** https://musicbrainz.org/doc/MusicBrainz_API
 - **MusicBrainz Database Schema:** https://musicbrainz.org/doc/MusicBrainz_Database/Schema
+
+---
+
+## MVP Definition
+
+### Core Feature
+
+For `/user/{username}/{year}` - show a visualization of what years the scrobbled music was originally released in.
+
+**Example:** User's 2024 scrobbles broken down by release decade/year:
+- 1970s: 5%
+- 1980s: 12%
+- 1990s: 25%
+- 2000s: 30%
+- 2010s: 20%
+- 2020s: 8%
+
+### Minimal Data Requirements
+
+```sql
+-- MVP only needs:
+SELECT release_year, COUNT(*) as play_count
+FROM scrobbles
+WHERE username = $1
+  AND scrobbled_at >= $2  -- year start
+  AND scrobbled_at < $3   -- year end
+  AND release_year IS NOT NULL
+GROUP BY release_year
+ORDER BY release_year;
+```
+
+### MVP UI
+
+- Bar chart or simple table showing release year distribution
+- Link back to Last.fm profile ("View on Last.fm")
+
+---
+
+## Open Issues
+
+### Milestone: Error Handling & Resilience
+
+#### Issue 1: Last.fm API Failure Recovery
+
+**Problem:** What happens when Last.fm is down or rate-limits mid-fetch?
+
+**To investigate:**
+- Store last successfully fetched page number
+- Resume from failure point on retry
+- Exponential backoff strategy
+- Max retry attempts before marking job as failed
+
+#### Issue 2: Partial Fetch Handling
+
+**Problem:** User has 50 pages of scrobbles, fetch fails at page 30.
+
+**To investigate:**
+- Should we keep the first 30 pages or discard?
+- How to communicate partial state to user?
+- Manual retry trigger vs automatic
+
+#### Issue 3: MusicBrainz Augmentation Failures
+
+**Problem:** MusicBrainz mirror is temporarily unavailable.
+
+**To investigate:**
+- Queue failed lookups for retry
+- Separate augmentation status from fetch status
+- Allow serving partially augmented data ("85% of scrobbles have release year")
+
+---
+
+### Milestone: Dokploy Infrastructure Setup
+
+**Goal:** Set up Dokploy for deploying and managing services.
+
+**Services to deploy:**
+- Go worker (scrobble fetcher + augmenter)
+- TypeScript API/frontend
+- PostgreSQL (or connect to Neon)
+- Redis (if needed for job coordination)
+
+**To investigate:**
+- Dokploy on VPS setup
+- Service networking (Go worker → MusicBrainz mirror)
+- Environment variable management
+- CI/CD integration
+- Logging and monitoring
+
+**Resources:**
+- https://dokploy.com/
+- Consider Railway as alternative if Dokploy doesn't work out
+
+---
+
+## Testing Strategy (TBD)
+
+Focus areas to consider:
+- Go worker goroutines and concurrency
+- Rate limiter behavior
+- Job state transitions
+- MusicBrainz query correctness
+
+---
+
+## Privacy
+
+- Add "View on Last.fm" link to user profile pages
+- Consider robots.txt noindex for user pages (future consideration)
