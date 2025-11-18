@@ -193,10 +193,174 @@ With max 200 per page, heavy listeners need multiple requests:
 
 ---
 
+## Authentication
+
+### When You Need Auth
+
+- **No auth required:** Reading public data (`user.getRecentTracks`, `user.getInfo`, etc.) - just API key
+- **Auth required:** Writing data (scrobbling), accessing private user data
+
+### Web Application Flow
+
+1. **Redirect user to Last.fm**
+   ```
+   https://www.last.fm/api/auth/?api_key=YOUR_API_KEY
+   ```
+
+2. **User grants permission** - sees your app name/description
+
+3. **Last.fm redirects back with token**
+   ```
+   https://your-callback-url.com/?token=xxxxxx
+   ```
+
+4. **Exchange token for session key**
+   ```javascript
+   const params = {
+     method: 'auth.getSession',
+     api_key: 'YOUR_API_KEY',
+     token: 'TOKEN_FROM_CALLBACK',
+     api_sig: generateSignature(params, secret)
+   };
+   ```
+
+### API Signature Generation
+
+```javascript
+function generateSignature(params, secret) {
+  // 1. Sort params alphabetically (exclude 'format' and 'callback')
+  const sorted = Object.keys(params)
+    .filter(k => k !== 'format' && k !== 'callback')
+    .sort();
+
+  // 2. Concatenate key+value pairs
+  let str = '';
+  for (const key of sorted) {
+    str += key + params[key];
+  }
+
+  // 3. Append secret and MD5 hash
+  str += secret;
+  return md5(str);
+}
+```
+
+### Token & Session Details
+
+| Item | Details |
+|------|---------|
+| Token lifetime | 60 minutes, single-use |
+| Session lifetime | Infinite (until user revokes) |
+| Callback URL | Must be configured in API account settings |
+
+**Documentation:** https://www.last.fm/api/authspec
+
+---
+
+## Detecting Available Years
+
+### user.getWeeklyChartList
+
+Returns all weekly chart periods for a user - use this to determine which years have scrobble data.
+
+```
+GET https://ws.audioscrobbler.com/2.0/?method=user.getWeeklyChartList
+```
+
+**Documentation:** https://www.last.fm/api/show/user.getWeeklyChartList
+
+### Response Structure
+
+```json
+{
+  "weeklychartlist": {
+    "chart": [
+      { "from": "1357430400", "to": "1358035200" },
+      { "from": "1358035200", "to": "1358640000" },
+      // ... all weekly periods
+    ]
+  }
+}
+```
+
+### Extract Available Years
+
+```javascript
+const response = await fetch(
+  `https://ws.audioscrobbler.com/2.0/?method=user.getWeeklyChartList&user=${username}&api_key=${API_KEY}&format=json`
+);
+
+const data = await response.json();
+const charts = data.weeklychartlist.chart;
+
+// Get unique years from chart periods
+const years = [...new Set(
+  charts.map(chart => new Date(chart.from * 1000).getFullYear())
+)].sort((a, b) => b - a);  // Descending order
+
+// Result: [2024, 2023, 2022, 2021, 2020, 2019, 2017, 2016, 2015, 2014, 2013]
+// Note: 2018 missing = gap year detected!
+```
+
+### URL Structure
+
+```
+/user/jellebouwman           → Show available years (from getWeeklyChartList)
+/user/jellebouwman/2019      → Show 2019 stats (from getRecentTracks)
+```
+
+---
+
+## User Validation
+
+### user.getInfo
+
+Check if a user exists and get basic profile data.
+
+```
+GET https://ws.audioscrobbler.com/2.0/?method=user.getInfo
+```
+
+**Documentation:** https://www.last.fm/api/show/user.getInfo
+
+### Response Fields
+
+- `name` - Username
+- `realname` - Display name
+- `playcount` - Total scrobbles
+- `registered.unixtime` - Account creation timestamp
+- `image` - Profile image URLs
+- `country` - User's country
+- `url` - Profile URL
+
+### Example
+
+```javascript
+const response = await fetch(
+  `https://ws.audioscrobbler.com/2.0/?method=user.getInfo&user=${username}&api_key=${API_KEY}&format=json`
+);
+
+const data = await response.json();
+
+if (data.error) {
+  // User doesn't exist or profile is private
+  console.log('User not found:', data.message);
+} else {
+  console.log('User exists:', data.user.name);
+  console.log('Total scrobbles:', data.user.playcount);
+  console.log('Registered:', new Date(data.user.registered.unixtime * 1000));
+}
+```
+
+---
+
 ## External Resources
 
 - **Last.fm API Documentation:** https://www.last.fm/api
 - **user.getRecentTracks:** https://www.last.fm/api/show/user.getRecentTracks
+- **user.getWeeklyChartList:** https://www.last.fm/api/show/user.getWeeklyChartList
+- **user.getInfo:** https://www.last.fm/api/show/user.getInfo
+- **Authentication Spec:** https://www.last.fm/api/authspec
 - **Last.fm API Terms:** https://www.last.fm/api/tos
 - **MusicBrainz API:** https://musicbrainz.org/doc/MusicBrainz_API
 - **MusicBrainz Database Schema:** https://musicbrainz.org/doc/MusicBrainz_Database/Schema
