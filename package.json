@@ -1,22 +1,9 @@
 {
-  "scripts": {
-    "format": "prettier --write .",
-    "build": "tsc",
-    "flush-exec": "pnpm run flush && pnpm run exec",
-    "exec": "pnpm run build && node build/main.js",
-    "flush": "rm music.db && sqlite3 music.db < schema.sql"
+  "name": "last-year-fm",
+  "author": {
+    "name": "Jelle Bouwman"
   },
-  "devDependencies": {
-    "@tsconfig/node21": "^21.0.1",
-    "@tsconfig/strictest": "^2.0.3",
-    "@types/node": "^20.11.24",
-    "@types/uuid": "^9.0.8",
-    "prettier": "3.2.5"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.5",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
-    "zod": "^3.22.4"
-  }
+  "scripts": {},
+  "devDependencies": {},
+  "dependencies": {}
 }
