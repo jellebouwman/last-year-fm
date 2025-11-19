@@ -1,4 +1,5 @@
 - On a VPS, always use vim. Never nano.
+- Local DB: `PGPASSWORD=postgres psql -h localhost -U postgres -d lastyearfm`
 
 ## Monorepo Conventions
 

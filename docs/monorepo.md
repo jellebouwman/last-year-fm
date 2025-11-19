@@ -11,7 +11,8 @@ This is a monorepo that is managed with pnpm. All packages lives in ./packages.
 - worker
 
 ## Installing packages
-- Install: `pnpm add <pkg> --filter <package>`
+- Find the latest version of a package by running `npm view <pkg> version`
+- Install: `pnpm add <pkg>@<version> --filter <package>`
 - Default to pinned versions instead of using `^` or other version range definitions.
 
 ## Creating Scripts

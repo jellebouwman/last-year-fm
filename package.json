@@ -3,7 +3,11 @@
   "author": {
     "name": "Jelle Bouwman"
   },
-  "scripts": {},
+  "scripts": {
+    "db:generate": "pnpm --filter db generate",
+    "db:migrate": "pnpm --filter db migrate",
+    "db:seed": "pnpm --filter db seed"
+  },
   "devDependencies": {},
   "dependencies": {}
 }
