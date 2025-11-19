@@ -6,7 +6,7 @@
 - Package prefixes: `db:`, `app:`, `worker:`
 - Install: `pnpm add <pkg> --filter <package>`
 - Scripts: define in package, alias in root with prefix (e.g., `db:generate`)
-- When installing packages, check https://www.npmjs.com/ for latest version
+- When installing packages, check https://registry.npmjs.org/<package>/latest for version
 
 ## CLAUDE.md Style
 
