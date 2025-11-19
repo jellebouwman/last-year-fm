@@ -146,6 +146,47 @@ CREATE TABLE lastfm_users (
 
 ---
 
+## Schema Sharing (TypeScript ↔ Go)
+
+**Approach:** Database migrations as the single source of truth
+
+```
+schema.ts → drizzle-kit generate → SQL migrations → sqlc generate → Go structs
+```
+
+### Workflow
+
+1. **Drizzle owns the schema** - Define tables in `packages/db/schema.ts`
+2. **Always generate migrations** - Never use `push`, always `pnpm db:generate`
+3. **sqlc reads migrations** - Applies them sequentially to build schema model
+4. **Regenerate Go after changes** - Run `pnpm worker:sqlc` after any migration
+
+### sqlc Configuration
+
+```yaml
+# packages/worker/sqlc.yaml
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "queries/*.sql"
+    schema: "../db/drizzle"  # Points to Drizzle migrations
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+```
+
+### Commands
+
+```bash
+pnpm db:generate    # After schema.ts changes → creates migration
+pnpm worker:sqlc    # After migration → regenerates Go structs
+```
+
+**Why this approach:** SQL migrations are the contract between TypeScript and Go. Both languages derive their types from the same source, preventing drift.
+
+---
+
 ## Data Flow
 
 ### New User Request
