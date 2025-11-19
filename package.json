@@ -3,11 +3,15 @@
   "author": {
     "name": "Jelle Bouwman"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "db:generate": "pnpm --filter db generate",
     "db:migrate": "pnpm --filter db migrate",
     "db:seed": "pnpm --filter db seed"
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "devDependencies": {
+    "@tsconfig/node22": "22.0.5"
+  }
 }

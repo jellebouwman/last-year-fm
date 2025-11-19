@@ -1,6 +1,10 @@
 - On a VPS, always use vim. Never nano.
 - Local DB: `PGPASSWORD=postgres psql -h localhost -U postgres -d lastyearfm`
 
+## Node
+
+- Node 22 across all Node packages (`.node-version`, `engines.node >= 22`)
+
 ## Monorepo Conventions
 
 - Check ./docs/monorepo.md
