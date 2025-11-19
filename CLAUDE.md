@@ -2,11 +2,7 @@
 
 ## Monorepo Conventions
 
-- Always run commands from root, never cd into packages
-- Package prefixes: `db:`, `app:`, `worker:`
-- Install: `pnpm add <pkg> --filter <package>`
-- Scripts: define in package, alias in root with prefix (e.g., `db:generate`)
-- When installing packages, check https://registry.npmjs.org/<package>/latest for version
+- Check ./docs/monorepo.md
 
 ## CLAUDE.md Style
 
