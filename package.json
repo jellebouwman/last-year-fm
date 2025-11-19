@@ -7,6 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "app:build": "pnpm --filter app build",
+    "app:dev": "pnpm --filter app dev",
     "db:generate": "pnpm --filter db generate",
     "db:migrate": "pnpm --filter db migrate",
     "db:seed": "pnpm --filter db seed"

@@ -6,14 +6,20 @@
   "engines": {
     "node": ">=22"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
-    "drizzle-orm": "0.44.7"
+    "@tailwindcss/vite": "4.1.17",
+    "astro": "5.15.9",
+    "drizzle-orm": "0.44.7",
+    "tailwindcss": "4.1.17"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
   }
 }
