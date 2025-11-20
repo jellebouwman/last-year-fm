@@ -11,9 +11,11 @@
     "app:dev": "pnpm --filter app dev",
     "db:generate": "pnpm --filter db generate",
     "db:migrate": "pnpm --filter db migrate",
-    "db:seed": "pnpm --filter db seed"
+    "db:seed": "pnpm --filter db seed",
+    "check": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.6",
     "@tsconfig/node22": "22.0.5"
   }
 }
