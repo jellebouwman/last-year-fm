@@ -12,10 +12,12 @@
     "db:generate": "pnpm --filter db generate",
     "db:migrate": "pnpm --filter db migrate",
     "db:seed": "pnpm --filter db seed",
-    "check": "biome check --write ."
+    "check": "biome check --write . && prettier --write '**/*.astro'"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.6",
-    "@tsconfig/node22": "22.0.5"
+    "@tsconfig/node22": "22.0.5",
+    "prettier": "^3.6.2",
+    "prettier-plugin-astro": "^0.14.1"
   }
 }
