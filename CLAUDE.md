@@ -5,6 +5,10 @@
 
 - Node 22 across all Node packages (`.node-version`, `engines.node >= 22`)
 
+## Code Quality
+
+- Always run `pnpm check` for formatting/linting (never raw `npx biome` commands)
+
 ## Monorepo Conventions
 
 - Check ./docs/monorepo.md
