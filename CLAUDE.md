@@ -5,9 +5,16 @@
 
 - Node 22 across all Node packages (`.node-version`, `engines.node >= 22`)
 
+## Go
+
+- Use modern Go syntax (Go 1.18+): `any` instead of `interface{}`, generics where appropriate
+- Format: `pnpm worker:format` (goimports)
+- Lint: `pnpm worker:lint` (golangci-lint)
+
 ## Code Quality
 
-- Always run `pnpm check` for formatting/linting (never raw `npx biome` commands)
+- Always run `pnpm check` for formatting/linting across all packages (TypeScript, Astro, Go)
+- Never raw `npx biome`, `goimports`, or `golangci-lint` commands
 
 ## Monorepo Conventions
 

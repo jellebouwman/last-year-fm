@@ -78,7 +78,7 @@ sqlc reads schema from `packages/db/drizzle/` (Drizzle migrations). Queries must
 
 sqlc is managed as a Go tool dependency via `tools.go` (version-locked in `go.mod`).
 
-Workflow:
+**Type Generation:**
 
 ```bash
 # 1. Write SQL queries in packages/worker/queries/*.sql
@@ -87,6 +87,37 @@ Workflow:
 pnpm worker:generate
 
 # 3. Generated types appear in packages/worker/db/
+```
+
+**Formatting & Linting:**
+
+```bash
+pnpm worker:format  # Format Go code with goimports
+pnpm worker:lint    # Lint Go code with golangci-lint
+pnpm check          # Format and lint all packages (TS, Astro, Go)
+```
+
+**Building:**
+
+```bash
+pnpm worker:build   # Build binary to dist/worker
+```
+
+**Running the Worker:**
+
+In development, the worker loads `.env.local` or `.env` automatically. In production (`GO_ENV=production`), it expects system environment variables.
+
+```bash
+pnpm worker:dev  # Runs on port 8080
+```
+
+**Import Scrobbles:**
+
+```bash
+# Import scrobbles for a user and year (defaults: jellebouwman, 2025)
+curl -X POST http://localhost:8080/import \
+  -H "Content-Type: application/json" \
+  -d '{"username": "jellebouwman", "year": 2025}'
 ```
 
 Configuration: `packages/worker/sqlc.yaml`

@@ -16,7 +16,11 @@
     "db:flush": "pnpm --filter db flush",
     "db:reset": "pnpm --filter db reset",
     "worker:generate": "cd packages/worker && go run github.com/sqlc-dev/sqlc/cmd/sqlc generate",
-    "check": "biome check --write . && prettier --write '**/*.astro'"
+    "worker:dev": "cd packages/worker && go run main.go",
+    "worker:build": "cd packages/worker && go build -o ../../dist/worker main.go",
+    "worker:format": "cd packages/worker && go run golang.org/x/tools/cmd/goimports -w .",
+    "worker:lint": "cd packages/worker && go run github.com/golangci/golangci-lint/cmd/golangci-lint run",
+    "check": "biome check --write . && prettier --write '**/*.astro' && pnpm worker:format && pnpm worker:lint"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.6",
