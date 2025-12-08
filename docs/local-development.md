@@ -37,6 +37,7 @@ After starting the database:
 pnpm db:generate   # Generate migrations from schema changes
 pnpm db:migrate    # Apply migrations to database
 pnpm db:seed       # Insert test data
+pnpm db:studio     # Open Drizzle Studio (database GUI)
 ```
 
 Full reset workflow:
@@ -47,3 +48,13 @@ docker compose up -d     # Start fresh
 pnpm db:migrate          # Apply all migrations
 pnpm db:seed             # Seed test data
 ```
+
+## Drizzle Studio
+
+Browse and edit your database with a web UI:
+
+```bash
+pnpm db:studio
+```
+
+Opens at `https://local.drizzle.studio`

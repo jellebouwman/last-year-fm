@@ -9,7 +9,8 @@
   "scripts": {
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "studio": "drizzle-kit studio"
   },
   "keywords": [],
   "author": "",
