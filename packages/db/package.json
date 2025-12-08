@@ -11,7 +11,8 @@
     "migrate": "drizzle-kit migrate",
     "seed": "tsx scripts/seed.ts",
     "studio": "drizzle-kit studio",
-    "flush": "tsx scripts/flush.ts"
+    "flush": "tsx scripts/flush.ts",
+    "reset": "tsx scripts/flush.ts && tsx scripts/seed.ts"
   },
   "keywords": [],
   "author": "",
