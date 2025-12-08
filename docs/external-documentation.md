@@ -9,3 +9,4 @@
 
 - API overview: https://www.last.fm/api
 - User info: https://www.last.fm/api/show/user.getInfo
+- Recent tracks (scrobbles): https://www.last.fm/api/show/user.getRecentTracks
