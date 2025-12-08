@@ -15,6 +15,7 @@
     "db:studio": "pnpm --filter db studio",
     "db:flush": "pnpm --filter db flush",
     "db:reset": "pnpm --filter db reset",
+    "worker:generate": "cd packages/worker && go run github.com/sqlc-dev/sqlc/cmd/sqlc generate",
     "check": "biome check --write . && prettier --write '**/*.astro'"
   },
   "devDependencies": {

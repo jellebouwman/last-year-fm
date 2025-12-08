@@ -69,3 +69,24 @@ pnpm db:reset   # Flush + reseed
 ```
 
 Safety: Only works on local databases (localhost/127.0.0.1).
+
+## Worker (Go + sqlc)
+
+The `packages/worker/` directory uses [sqlc](https://sqlc.dev/) to generate type-safe Go code from SQL queries.
+
+sqlc reads schema from `packages/db/drizzle/` (Drizzle migrations). Queries must match that schema.
+
+sqlc is managed as a Go tool dependency via `tools.go` (version-locked in `go.mod`).
+
+Workflow:
+
+```bash
+# 1. Write SQL queries in packages/worker/queries/*.sql
+#    (must match schema in packages/db/drizzle/)
+# 2. Generate Go types
+pnpm worker:generate
+
+# 3. Generated types appear in packages/worker/db/
+```
+
+Configuration: `packages/worker/sqlc.yaml`
