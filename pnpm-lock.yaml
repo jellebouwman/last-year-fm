@@ -14,6 +14,9 @@ importers:
       '@tsconfig/node22':
         specifier: 22.0.5
         version: 22.0.5
+      '@tsconfig/strictest':
+        specifier: ^2.0.8
+        version: 2.0.8
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -844,6 +847,9 @@ packages:
 
   '@tsconfig/node22@22.0.5':
     resolution: {integrity: sha512-hLf2ld+sYN/BtOJjHUWOk568dvjFQkHnLNa6zce25GIH+vxKfvTgm3qpaH6ToF5tu/NN0IH66s+Bb5wElHrLcw==}
+
+  '@tsconfig/strictest@2.0.8':
+    resolution: {integrity: sha512-XnQ7vNz5HRN0r88GYf1J9JJjqtZPiHt2woGJOo2dYqyHGGcd6OLGqSlBB6p1j9mpzja6Oe5BoPqWmeDx6X9rLw==}
 
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
@@ -2599,6 +2605,8 @@ snapshots:
       vite: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6)
 
   '@tsconfig/node22@22.0.5': {}
+
+  '@tsconfig/strictest@2.0.8': {}
 
   '@types/debug@4.1.12':
     dependencies:
