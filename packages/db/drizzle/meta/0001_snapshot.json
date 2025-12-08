@@ -1,5 +1,5 @@
 {
-  "id": "74d832ec-b1e1-4e43-8601-3a9ad670549c",
+  "id": "66b799b0-e06c-41d5-be2c-49d66fb92744",
   "prevId": "16401030-05d6-4424-bb8d-c7953e8c0732",
   "version": "7",
   "dialect": "postgresql",
@@ -135,15 +135,15 @@
       "checkConstraints": {
         "track_mbid_valid": {
           "name": "track_mbid_valid",
-          "value": "track_mbid IS NULL OR (length(track_mbid) = 36 AND track_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
+          "value": "\"trackMbid\" IS NULL OR (length(\"trackMbid\") = 36 AND \"trackMbid\" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
         },
         "artist_mbid_valid": {
           "name": "artist_mbid_valid",
-          "value": "artist_mbid IS NULL OR (length(artist_mbid) = 36 AND artist_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
+          "value": "\"artistMbid\" IS NULL OR (length(\"artistMbid\") = 36 AND \"artistMbid\" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
         },
         "album_mbid_valid": {
           "name": "album_mbid_valid",
-          "value": "album_mbid IS NULL OR (length(album_mbid) = 36 AND album_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
+          "value": "\"albumMbid\" IS NULL OR (length(\"albumMbid\") = 36 AND \"albumMbid\" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')"
         }
       },
       "isRLSEnabled": false

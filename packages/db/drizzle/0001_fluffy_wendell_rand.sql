@@ -10,9 +10,9 @@ CREATE TABLE "scrobbles" (
 	"scrobbledAt" timestamp with time zone NOT NULL,
 	"scrobbledAtUnix" varchar(32) NOT NULL,
 	"year" integer NOT NULL,
-	CONSTRAINT "track_mbid_valid" CHECK (track_mbid IS NULL OR (length(track_mbid) = 36 AND track_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')),
-	CONSTRAINT "artist_mbid_valid" CHECK (artist_mbid IS NULL OR (length(artist_mbid) = 36 AND artist_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')),
-	CONSTRAINT "album_mbid_valid" CHECK (album_mbid IS NULL OR (length(album_mbid) = 36 AND album_mbid ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))
+	CONSTRAINT "track_mbid_valid" CHECK ("trackMbid" IS NULL OR (length("trackMbid") = 36 AND "trackMbid" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')),
+	CONSTRAINT "artist_mbid_valid" CHECK ("artistMbid" IS NULL OR (length("artistMbid") = 36 AND "artistMbid" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')),
+	CONSTRAINT "album_mbid_valid" CHECK ("albumMbid" IS NULL OR (length("albumMbid") = 36 AND "albumMbid" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))
 );
 --> statement-breakpoint
 ALTER TABLE "scrobbles" ADD CONSTRAINT "scrobbles_username_users_username_fk" FOREIGN KEY ("username") REFERENCES "public"."users"("username") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
