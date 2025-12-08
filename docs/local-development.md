@@ -38,6 +38,7 @@ pnpm db:generate   # Generate migrations from schema changes
 pnpm db:migrate    # Apply migrations to database
 pnpm db:seed       # Insert test data
 pnpm db:studio     # Open Drizzle Studio (database GUI)
+pnpm db:flush      # Truncate all tables (local only)
 ```
 
 Full reset workflow:
@@ -58,3 +59,14 @@ pnpm db:studio
 ```
 
 Opens at `https://local.drizzle.studio`
+
+## Flush Database
+
+Truncate all tables (removes all data, keeps schema):
+
+```bash
+pnpm db:flush            # Empty all tables
+pnpm db:flush && pnpm db:seed  # Empty and reseed
+```
+
+Safety: Only works on local databases (localhost/127.0.0.1).

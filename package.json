@@ -13,6 +13,7 @@
     "db:migrate": "pnpm --filter db migrate",
     "db:seed": "pnpm --filter db seed",
     "db:studio": "pnpm --filter db studio",
+    "db:flush": "pnpm --filter db flush",
     "check": "biome check --write . && prettier --write '**/*.astro'"
   },
   "devDependencies": {
