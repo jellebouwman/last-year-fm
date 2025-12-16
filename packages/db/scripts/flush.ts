@@ -5,7 +5,7 @@ import postgres from "postgres";
 
 config({ path: "../../.env.local" });
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env["DATABASE_URL"];
 if (!connectionString) {
   throw new Error(
     "DATABASE_URL environment variable is not set (scripts/flush.ts)",
@@ -29,7 +29,9 @@ function isLocalDatabase(url: string): boolean {
 }
 
 if (!isLocalDatabase(connectionString)) {
-  console.error("SAFETY CHECK FAILED: db:flush can only run on local databases");
+  console.error(
+    "SAFETY CHECK FAILED: db:flush can only run on local databases",
+  );
   console.error("Detected non-local host in DATABASE_URL");
   process.exit(1);
 }
