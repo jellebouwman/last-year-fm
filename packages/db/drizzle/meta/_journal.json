@@ -15,6 +15,13 @@
       "when": 1765187937855,
       "tag": "0001_fluffy_wendell_rand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765879617046,
+      "tag": "0002_serious_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

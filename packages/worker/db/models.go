@@ -9,17 +9,19 @@ import (
 )
 
 type Scrobble struct {
-	ID              pgtype.UUID        `json:"id"`
-	Username        string             `json:"username"`
-	TrackName       string             `json:"trackName"`
-	TrackMbid       pgtype.Text        `json:"trackMbid"`
-	ArtistName      string             `json:"artistName"`
-	ArtistMbid      pgtype.Text        `json:"artistMbid"`
-	AlbumName       pgtype.Text        `json:"albumName"`
-	AlbumMbid       pgtype.Text        `json:"albumMbid"`
-	ScrobbledAt     pgtype.Timestamptz `json:"scrobbledAt"`
-	ScrobbledAtUnix string             `json:"scrobbledAtUnix"`
-	Year            int32              `json:"year"`
+	ID                 pgtype.UUID        `json:"id"`
+	Username           string             `json:"username"`
+	TrackName          string             `json:"trackName"`
+	TrackMbid          pgtype.Text        `json:"trackMbid"`
+	ArtistName         string             `json:"artistName"`
+	ArtistMbid         pgtype.Text        `json:"artistMbid"`
+	AlbumName          pgtype.Text        `json:"albumName"`
+	AlbumMbid          pgtype.Text        `json:"albumMbid"`
+	ScrobbledAt        pgtype.Timestamptz `json:"scrobbledAt"`
+	ScrobbledAtUnix    string             `json:"scrobbledAtUnix"`
+	Year               int32              `json:"year"`
+	ReleaseYear        pgtype.Int4        `json:"releaseYear"`
+	ReleaseYearFetched bool               `json:"releaseYearFetched"`
 }
 
 type User struct {

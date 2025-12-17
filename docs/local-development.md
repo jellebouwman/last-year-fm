@@ -120,4 +120,32 @@ curl -X POST http://localhost:8080/import \
   -d '{"username": "jellebouwman", "year": 2025}'
 ```
 
+**Find Release Years:**
+
+```bash
+# Find release years using MusicBrainz database (defaults: jellebouwman, 2025)
+curl -X POST http://localhost:8080/find-release-years \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# With custom username and year
+curl -X POST http://localhost:8080/find-release-years \
+  -H "Content-Type: application/json" \
+  -d '{"username": "jellebouwman", "year": 2024}'
+```
+
+**Full Workflow:**
+
+```bash
+# 1. Import scrobbles from Last.fm
+curl -X POST http://localhost:8080/import \
+  -H "Content-Type: application/json" \
+  -d '{"username": "jellebouwman", "year": 2025}'
+
+# 2. Find release years from MusicBrainz
+curl -X POST http://localhost:8080/find-release-years \
+  -H "Content-Type: application/json" \
+  -d '{"username": "jellebouwman", "year": 2025}'
+```
+
 Configuration: `packages/worker/sqlc.yaml`

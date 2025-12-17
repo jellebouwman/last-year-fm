@@ -1,6 +1,6 @@
 {
-  "id": "66b799b0-e06c-41d5-be2c-49d66fb92744",
-  "prevId": "16401030-05d6-4424-bb8d-c7953e8c0732",
+  "id": "5204ef14-e6b3-499a-a428-9191e7ef3ffc",
+  "prevId": "66b799b0-e06c-41d5-be2c-49d66fb92744",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -74,6 +74,19 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "releaseYear": {
+          "name": "releaseYear",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "releaseYearFetched": {
+          "name": "releaseYearFetched",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {

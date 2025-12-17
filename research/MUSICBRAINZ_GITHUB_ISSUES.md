@@ -221,7 +221,7 @@ Application developers need to understand the MusicBrainz database schema to wri
 **Tasks:**
 - [ ] Export schema reference:
   ```bash
-  psql -h 46.62.240.182 -U readonly -d musicbrainz_db --schema-only > docs/musicbrainz-schema.sql
+  psql -h $MUSICBRAINZ_DB_HOST -U readonly -d musicbrainz_db --schema-only > docs/musicbrainz-schema.sql
   ```
 - [ ] Create ERD (Entity Relationship Diagram) of key tables
 - [ ] Document common tables and their relationships:

@@ -18,6 +18,7 @@
     "worker:generate": "cd packages/worker && go run github.com/sqlc-dev/sqlc/cmd/sqlc generate",
     "worker:dev": "cd packages/worker && go run main.go",
     "worker:build": "cd packages/worker && go build -o ../../dist/worker main.go",
+    "worker:test": "cd packages/worker && go test -v",
     "worker:format": "cd packages/worker && go run golang.org/x/tools/cmd/goimports -w .",
     "worker:lint": "cd packages/worker && go run github.com/golangci/golangci-lint/cmd/golangci-lint run",
     "check": "biome check --write . && prettier --write '**/*.astro' && pnpm worker:format && pnpm worker:lint"

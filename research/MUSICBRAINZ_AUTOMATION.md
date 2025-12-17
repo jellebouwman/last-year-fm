@@ -434,7 +434,7 @@ Since we already have a running setup, we'll extract the configuration increment
 
 7. **Tested successfully from dev machine**
    ```bash
-   psql -h 46.62.240.182 -U readonly -d musicbrainz_db -c "SELECT COUNT(*) FROM musicbrainz.artist;"
+   psql -h $MUSICBRAINZ_DB_HOST -U readonly -d musicbrainz_db -c "SELECT COUNT(*) FROM musicbrainz.artist;"
    # Result: 2,732,887 artists
    ```
 
@@ -513,11 +513,11 @@ sudo ufw allow 5432/tcp comment 'PostgreSQL'
 import { Pool } from 'pg';
 
 const pool = new Pool({
-  host: '46.62.240.182',
-  port: 5432,
-  database: 'musicbrainz_db',
-  user: 'readonly',
-  password: process.env.MUSICBRAINZ_PASSWORD, // from 1Password
+  host: process.env.MUSICBRAINZ_DB_HOST,
+  port: parseInt(process.env.MUSICBRAINZ_DB_PORT || '5432'),
+  database: process.env.MUSICBRAINZ_DB_NAME || 'musicbrainz_db',
+  user: process.env.MUSICBRAINZ_DB_USER || 'readonly',
+  password: process.env.MUSICBRAINZ_DB_PASSWORD,
   max: 20,
   idleTimeoutMillis: 30000,
 });

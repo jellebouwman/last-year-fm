@@ -11,6 +11,65 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getScrobblesForReleaseYearLookup = `-- name: GetScrobblesForReleaseYearLookup :many
+SELECT
+    id,
+    "trackName",
+    "trackMbid",
+    "artistName",
+    "artistMbid",
+    "albumName",
+    "albumMbid"
+FROM scrobbles
+WHERE username = $1
+  AND year = $2
+  AND "releaseYearFetched" = false
+ORDER BY "scrobbledAt"
+`
+
+type GetScrobblesForReleaseYearLookupParams struct {
+	Username string `json:"username"`
+	Year     int32  `json:"year"`
+}
+
+type GetScrobblesForReleaseYearLookupRow struct {
+	ID         pgtype.UUID `json:"id"`
+	TrackName  string      `json:"trackName"`
+	TrackMbid  pgtype.Text `json:"trackMbid"`
+	ArtistName string      `json:"artistName"`
+	ArtistMbid pgtype.Text `json:"artistMbid"`
+	AlbumName  pgtype.Text `json:"albumName"`
+	AlbumMbid  pgtype.Text `json:"albumMbid"`
+}
+
+func (q *Queries) GetScrobblesForReleaseYearLookup(ctx context.Context, arg GetScrobblesForReleaseYearLookupParams) ([]GetScrobblesForReleaseYearLookupRow, error) {
+	rows, err := q.db.Query(ctx, getScrobblesForReleaseYearLookup, arg.Username, arg.Year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetScrobblesForReleaseYearLookupRow{}
+	for rows.Next() {
+		var i GetScrobblesForReleaseYearLookupRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TrackName,
+			&i.TrackMbid,
+			&i.ArtistName,
+			&i.ArtistMbid,
+			&i.AlbumName,
+			&i.AlbumMbid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertScrobble = `-- name: InsertScrobble :exec
 INSERT INTO scrobbles (
     username,
@@ -52,5 +111,23 @@ func (q *Queries) InsertScrobble(ctx context.Context, arg InsertScrobbleParams) 
 		arg.ScrobbledAtUnix,
 		arg.Year,
 	)
+	return err
+}
+
+const updateScrobbleReleaseYear = `-- name: UpdateScrobbleReleaseYear :exec
+UPDATE scrobbles
+SET
+    "releaseYear" = $2,
+    "releaseYearFetched" = true
+WHERE id = $1
+`
+
+type UpdateScrobbleReleaseYearParams struct {
+	ID          pgtype.UUID `json:"id"`
+	ReleaseYear pgtype.Int4 `json:"releaseYear"`
+}
+
+func (q *Queries) UpdateScrobbleReleaseYear(ctx context.Context, arg UpdateScrobbleReleaseYearParams) error {
+	_, err := q.db.Exec(ctx, updateScrobbleReleaseYear, arg.ID, arg.ReleaseYear)
 	return err
 }

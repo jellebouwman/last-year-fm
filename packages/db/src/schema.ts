@@ -1,13 +1,14 @@
+import { sql } from "drizzle-orm";
 import {
+  boolean,
+  check,
+  index,
+  integer,
   pgTable,
+  timestamp,
   uuid,
   varchar,
-  timestamp,
-  integer,
-  index,
-  check,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -40,7 +41,11 @@ export const scrobbles = pgTable(
     // Scrobble metadata
     scrobbledAt: timestamp({ withTimezone: true }).notNull(),
     scrobbledAtUnix: varchar({ length: 32 }).notNull(), // Store original UTS for reference
-    year: integer().notNull(), // Denormalized for fast year queries
+    year: integer().notNull(), // Year when track was scrobbled (extracted from scrobbledAt for fast filtering)
+
+    // MusicBrainz release year lookup
+    releaseYear: integer(), // Year of release from MusicBrainz (NULL if not found)
+    releaseYearFetched: boolean().default(false).notNull(), // Track whether MB lookup has been attempted
   },
   (table) => [
     // Composite index for the main query pattern: user + year
